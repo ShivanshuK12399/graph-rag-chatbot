@@ -1,5 +1,5 @@
 import streamlit as st
-from graph_memory import add_memory, query_memory
+from graph_memory import add_memory, query_memory, extract_and_store
 
 st.set_page_config(page_title="Graph RAG Chatbot")
 
@@ -11,9 +11,9 @@ st.sidebar.title("Graph RAG Settings")
 user_id = st.sidebar.text_input("Enter User ID", value="user_1")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("Stage 1: UI Skeleton Only")
+st.sidebar.markdown("Stage 3: Rule-Based Extraction + Natural Recall")
 
-st.title("Graph RAG Chatbot - Stage 1")
+st.title("Graph RAG Chatbot")
 
 # -----------------------
 # Initialize Session
@@ -40,15 +40,50 @@ def handle_input():
     user_input = st.chat_input("Type your message...")
 
     if user_input:
+
         # Store user message
         st.session_state.chat_history[user_id].append({
             "role": "user",
             "content": user_input
         })
 
-        # ---------------- GRAPH MEMORY LOGIC ---------------- #
+        # ----------- AUTO EXTRACTION FIRST -----------
+        memory_response = extract_and_store(user_id, user_input)
 
-        if user_input.startswith("remember:"):
+        if memory_response:
+            st.session_state.chat_history[user_id].append({
+                "role": "assistant",
+                "content": memory_response
+            })
+            return
+        # ---------------------------------------------
+
+
+        question = user_input.strip().lower().rstrip("?.!")
+
+        # ----------- NATURAL RECALL -----------
+        if "where" in question and "work" in question:
+            memories = query_memory(user_id, "WORKS_AT")
+            bot_response = ", ".join(memories) if memories else "I don't have that information yet."
+
+        elif "where" in question and "live" in question:
+            memories = query_memory(user_id, "LIVES_IN")
+            bot_response = ", ".join(memories) if memories else "I don't have that information yet."
+
+        elif "where" in question and "study" in question:
+            memories1 = query_memory(user_id, "STUDIES_AT")
+            memories2 = query_memory(user_id, "STUDIES")
+            combined = list(set(memories1 + memories2))
+            bot_response = ", ".join(combined) if combined else "I don't have that information yet."
+
+        elif "what" in question and "like" in question:
+            memories = query_memory(user_id, "LIKES")
+            bot_response = ", ".join(memories) if memories else "I don't have that information yet."
+        # ---------------------------------------------
+
+
+        # ----------- MANUAL GRAPH COMMANDS ----------
+        elif user_input.startswith("remember:"):
             try:
                 data = user_input.replace("remember:", "").strip()
                 parts = data.split(" ")
@@ -79,9 +114,9 @@ def handle_input():
                 bot_response = "Invalid format. Use: recall: relation"
 
         else:
-            bot_response = "Use 'remember:' to store and 'recall:' to retrieve."
+            bot_response = "I don’t understand that yet."
 
-        # ----------------------------------------------------- #
+        # ---------------------------------------------
 
         st.session_state.chat_history[user_id].append({
             "role": "assistant",
