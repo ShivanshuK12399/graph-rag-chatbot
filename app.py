@@ -4,6 +4,9 @@ from llm_service import generate_answer
 import matplotlib.pyplot as plt
 import networkx as nx
 
+import spacy
+nlp = spacy.load("en_core_web_sm")
+
 st.set_page_config(page_title="Graph RAG Chatbot")
 
 # -----------------------
@@ -87,24 +90,48 @@ def handle_input():
 
         triples = []
 
-        # ----------- NATURAL RECALL (Intent Detection) -----------
-        if "where" in question and "work" in question:
-            memories = query_memory(user_id, "WORKS_AT")
-            triples = [f"{user_id} WORKS_AT {m}" for m in memories]
+        # ----------- NLP-BASED RECALL DETECTION -----------
+        doc = nlp(user_input)
+        
+        question_word = None
+        verb_lemma = None
+        
+        supported_verbs = {"work", "live", "study", "like"}
 
-        elif "where" in question and "live" in question:
-            memories = query_memory(user_id, "LIVES_IN")
-            triples = [f"{user_id} LIVES_IN {m}" for m in memories]
+        for token in doc:
+            if token.pos_ == "VERB" and token.lemma_.lower() in supported_verbs:
+                verb_lemma = token.lemma_.lower()
+        
+            if token.lower_ in {"where", "what"}:
+                question_word = token.text.lower()
+        
+        if question_word and verb_lemma:
+        
+            # WORK
+            if verb_lemma == "work" and question_word == "where":
+                memories = query_memory(user_id, "WORKS_AT")
+                triples = [f"{user_id} WORKS_AT {m}" for m in memories]
+        
+            # LIVE
+            elif verb_lemma == "live" and question_word == "where":
+                memories = query_memory(user_id, "LIVES_IN")
+                triples = [f"{user_id} LIVES_IN {m}" for m in memories]
+        
+            # STUDY LOCATION
+            elif verb_lemma == "study" and question_word == "where":
+                memories = query_memory(user_id, "STUDIES_AT")
+                triples = [f"{user_id} STUDIES_AT {m}" for m in memories]
+        
+            # STUDY SUBJECT
+            elif verb_lemma == "study" and question_word == "what":
+                memories = query_memory(user_id, "STUDIES")
+                triples = [f"{user_id} STUDIES {m}" for m in memories]
+        
+            # LIKES
+            elif verb_lemma == "like" and question_word == "what":
+                memories = query_memory(user_id, "LIKES")
+                triples = [f"{user_id} LIKES {m}" for m in memories]
 
-        elif "where" in question and "study" in question:
-            memories1 = query_memory(user_id, "STUDIES_AT")
-            memories2 = query_memory(user_id, "STUDIES")
-            combined = list(set(memories1 + memories2))
-            triples = [f"{user_id} STUDIES {m}" for m in combined]
-
-        elif "what" in question and "like" in question:
-            memories = query_memory(user_id, "LIKES")
-            triples = [f"{user_id} LIKES {m}" for m in memories]
 
         # ----------- MANUAL GRAPH COMMANDS ----------
         elif user_input.startswith("remember:"):

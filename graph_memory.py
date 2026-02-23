@@ -1,5 +1,7 @@
 import networkx as nx
+import spacy
 
+nlp = spacy.load("en_core_web_sm")
 G = nx.MultiDiGraph()
 
 def add_memory(user, relation, entity):
@@ -40,28 +42,76 @@ def get_user_relations(user):
 
 
 def extract_and_store(user_id, text):
+    doc = nlp(text)
 
-    if not text:
+    # 🚫 Skip questions
+    if doc[0].tag_ in ("WP", "WRB") or text.strip().endswith("?"):
         return None
 
-    text_stripped = text.strip()
-    text_lower = text_stripped.lower()
+    for token in doc:
+        # Look for ROOT verb
+        if token.dep_ == "ROOT" and token.pos_ == "VERB":
 
-    patterns = {
-        "i work at ": ("WORKS_AT", "Got it. I’ll remember you work at {entity}."),
-        "i live in ": ("LIVES_IN", "Got it. I’ll remember you live in {entity}."),
-        "i study at ": ("STUDIES_AT", "Got it. I’ll remember you study at {entity}."),
-        "i study ": ("STUDIES", "Got it. I’ll remember you study {entity}."),
-        "i like ": ("LIKES", "Got it. I’ll remember you like {entity}."),
-    }
+            # Check subject = I
+            subject = None
+            for child in token.children:
+                if child.dep_ in ("nsubj", "nsubjpass") and child.text.lower() == "i":
+                    subject = child
 
-    for prefix, (relation, message_template) in patterns.items():
-        if text_lower.startswith(prefix):
-            entity = text_stripped[len(prefix):].strip().rstrip(".,!?")
+            if not subject:
+                continue
 
-            if entity:
+            # Detect negation
+            is_negated = any(child.dep_ == "neg" for child in token.children)
+            if is_negated:
+                return  # Ignore negative statements for now
+
+            verb = token.lemma_.lower()
+
+            # Extract object / complement
+            entity = None
+
+            for child in token.children:
+            
+                # Direct object
+                if child.dep_ in ("dobj", "attr"):
+                    entity = doc[child.left_edge.i : child.right_edge.i + 1].text
+            
+                # Prepositional object (work at X, live in X)
+                if child.dep_ == "prep":
+                    for prep_child in child.children:
+                        if prep_child.dep_ == "pobj":
+                            entity = doc[
+                                prep_child.left_edge.i : prep_child.right_edge.i + 1
+                            ].text
+
+            if not entity:
+                return
+
+            entity = entity.rstrip(".,!?")
+
+            # Map verb to relation
+            relation = None
+
+            if verb == "work":
+                relation = "WORKS_AT"
+            
+            elif verb == "live":
+                relation = "LIVES_IN"
+            
+            elif verb == "like":
+                relation = "LIKES"
+            
+            elif verb == "study":
+                # If preposition "at" exists → institution
+                if any(child.dep_ == "prep" and child.text.lower() == "at" for child in token.children):
+                    relation = "STUDIES_AT"
+                else:
+                    relation = "STUDIES"
+
+            if relation:
                 add_memory(user_id, relation, entity)
-                return message_template.format(entity=entity)
+                return f"Got it. I'll remember that."
 
     return None
 
