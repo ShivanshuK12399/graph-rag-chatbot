@@ -64,3 +64,14 @@ def extract_and_store(user_id, text):
                 return message_template.format(entity=entity)
 
     return None
+
+def get_user_subgraph(user_id):
+    import networkx as nx
+
+    subgraph = nx.MultiDiGraph()
+
+    for u, v, data in G.edges(data=True):
+        if u == user_id:
+            subgraph.add_edge(u, v, relation=data["relation"])
+
+    return subgraph

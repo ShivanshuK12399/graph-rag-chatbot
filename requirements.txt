@@ -1,2 +1,5 @@
-networkx>=3.6.1
 streamlit
+networkx
+groq
+spacy
+matplotlib

@@ -1,5 +1,8 @@
 import streamlit as st
-from graph_memory import add_memory, query_memory, extract_and_store
+from graph_memory import add_memory, query_memory, extract_and_store, get_user_subgraph
+from llm_service import generate_answer
+import matplotlib.pyplot as plt
+import networkx as nx
 
 st.set_page_config(page_title="Graph RAG Chatbot")
 
@@ -11,7 +14,30 @@ st.sidebar.title("Graph RAG Settings")
 user_id = st.sidebar.text_input("Enter User ID", value="user_1")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("Stage 3: Rule-Based Extraction + Natural Recall")
+st.sidebar.markdown("Stage 5: Graph RAG + LLM Formatting")
+if st.sidebar.button("Show Graph"):
+    subgraph = get_user_subgraph(user_id)
+
+    if len(subgraph.edges()) == 0:
+        st.sidebar.write("No memory to display.")
+    else:
+        fig, ax = plt.subplots()
+        pos = nx.spring_layout(subgraph)
+
+        nx.draw(
+            subgraph,
+            pos,
+            with_labels=True,
+            node_color="lightblue",
+            node_size=2000,
+            font_size=10,
+            ax=ax
+        )
+
+        edge_labels = nx.get_edge_attributes(subgraph, 'relation')
+        nx.draw_networkx_edge_labels(subgraph, pos, edge_labels=edge_labels, ax=ax)
+
+        st.pyplot(fig)
 
 st.title("Graph RAG Chatbot")
 
@@ -40,7 +66,6 @@ def handle_input():
     user_input = st.chat_input("Type your message...")
 
     if user_input:
-
         # Store user message
         st.session_state.chat_history[user_id].append({
             "role": "user",
@@ -58,29 +83,28 @@ def handle_input():
             return
         # ---------------------------------------------
 
-
         question = user_input.strip().lower().rstrip("?.!")
 
-        # ----------- NATURAL RECALL -----------
+        triples = []
+
+        # ----------- NATURAL RECALL (Intent Detection) -----------
         if "where" in question and "work" in question:
             memories = query_memory(user_id, "WORKS_AT")
-            bot_response = ", ".join(memories) if memories else "I don't have that information yet."
+            triples = [f"{user_id} WORKS_AT {m}" for m in memories]
 
         elif "where" in question and "live" in question:
             memories = query_memory(user_id, "LIVES_IN")
-            bot_response = ", ".join(memories) if memories else "I don't have that information yet."
+            triples = [f"{user_id} LIVES_IN {m}" for m in memories]
 
         elif "where" in question and "study" in question:
             memories1 = query_memory(user_id, "STUDIES_AT")
             memories2 = query_memory(user_id, "STUDIES")
             combined = list(set(memories1 + memories2))
-            bot_response = ", ".join(combined) if combined else "I don't have that information yet."
+            triples = [f"{user_id} STUDIES {m}" for m in combined]
 
         elif "what" in question and "like" in question:
             memories = query_memory(user_id, "LIKES")
-            bot_response = ", ".join(memories) if memories else "I don't have that information yet."
-        # ---------------------------------------------
-
+            triples = [f"{user_id} LIKES {m}" for m in memories]
 
         # ----------- MANUAL GRAPH COMMANDS ----------
         elif user_input.startswith("remember:"):
@@ -100,23 +124,34 @@ def handle_input():
             except:
                 bot_response = "Invalid format. Use: remember: relation entity"
 
+            st.session_state.chat_history[user_id].append({
+                "role": "assistant",
+                "content": bot_response
+            })
+            return
+
         elif user_input.startswith("recall:"):
             try:
                 relation = user_input.replace("recall:", "").strip()
                 memories = query_memory(user_id, relation)
 
-                if memories:
-                    bot_response = ", ".join(memories)
-                else:
-                    bot_response = "No memory found."
+                triples = [f"{user_id} {relation} {m}" for m in memories]
 
             except:
-                bot_response = "Invalid format. Use: recall: relation"
+                st.session_state.chat_history[user_id].append({
+                    "role": "assistant",
+                    "content": "Invalid format. Use: recall: relation"
+                })
+                return
 
+        # ----------------------------------------------------------
+
+        # ----------- LLM RESPONSE -----------
+        if triples:
+            bot_response = generate_answer(triples, user_input)
         else:
-            bot_response = "I don’t understand that yet."
-
-        # ---------------------------------------------
+            bot_response = "I don't know."
+        # ------------------------------------
 
         st.session_state.chat_history[user_id].append({
             "role": "assistant",
