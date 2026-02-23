@@ -1,79 +1,87 @@
 import streamlit as st
-from graph_memory import add_memory, query_memory, extract_and_store, get_user_subgraph
-from llm_service import generate_answer
 import matplotlib.pyplot as plt
 import networkx as nx
-
 import spacy
+from graph_memory import add_memory, query_memory, extract_and_store, get_user_subgraph
+from llm_service import generate_answer
+
+
+
 nlp = spacy.load("en_core_web_sm")
 
 st.set_page_config(page_title="Graph RAG Chatbot")
-
-# -----------------------
-# Sidebar
-# -----------------------
 st.sidebar.title("Graph RAG Settings")
 
+# simulate multiple users, each user gets separate memory
 user_id = st.sidebar.text_input("Enter User ID", value="user_1")
 
-if st.sidebar.button("Show Graph"):
-    subgraph = get_user_subgraph(user_id)
+
+
+# When clicked -> Get user’s subgraph
+if st.sidebar.button("Show Graph"): 
+    subgraph = get_user_subgraph(user_id) # subgraph is a graph object, it contains nodes, edges and edge relations
 
     if len(subgraph.edges()) == 0:
         st.sidebar.write("No memory to display.")
     else:
-        fig, ax = plt.subplots()
-        pos = nx.spring_layout(subgraph)
+        fig, ax = plt.subplots()  # Creates a matplotlib figure(full canvas) and axis(drawing area)
+        pos = nx.spring_layout(subgraph)  # Generate dict. of node positions -> spring physics simulation, Nodes repel each other, Connected nodes pull closer.
 
-        nx.draw(
+        #draw nodes + edges
+        nx.draw( 
             subgraph,
             pos,
-            with_labels=True,
+            with_labels=True,   # shows node names
             node_color="lightblue",
-            node_size=2000,
-            font_size=10,
-            ax=ax
+            node_size=2000,    #set nodes size
+            font_size=10,    #label size
+            ax=ax  #draw on our matplotlib axisa
         )
 
-        edge_labels = nx.get_edge_attributes(subgraph, 'relation')
-        nx.draw_networkx_edge_labels(subgraph, pos, edge_labels=edge_labels, ax=ax)
+        edge_labels = nx.get_edge_attributes(subgraph, 'relation') #output format: {('user_1', 'Google'): 'WORKS_AT', ('user_1', 'Delhi'): 'LIVES_IN'}
+        nx.draw_networkx_edge_labels(subgraph, pos, edge_labels=edge_labels, ax=ax) #Draw relation text on edges
 
         st.pyplot(fig)
 
 st.title("Graph RAG Chatbot")
 
-# -----------------------
-# Initialize Session
-# -----------------------
+
+
+# Maintain chat history per user
 def initialize_session():
+    # Creates chat storage dictionary if not present
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = {}
 
+    # Each user gets their own message list
     if user_id not in st.session_state.chat_history:
         st.session_state.chat_history[user_id] = []
 
-# -----------------------
-# Display Chat
-# -----------------------
+
+
+# Render chat history on screen
 def display_chat():
     for message in st.session_state.chat_history[user_id]:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+        # with st.chat_message(message["role"]): 
+        #     st.write(message["content"])
+        container = st.chat_message(message["role"]) #creates a chat bubble container for user and bot
+        container.write(message["content"])  #prints text inside that bubble -> message["content"] contains the message text
 
-# -----------------------
-# Handle Input
-# -----------------------
+
+
+# Pipeline: User input → Store → Try memory extraction → Try recall → LLM → Display.
 def handle_input():
-    user_input = st.chat_input("Type your message...")
+    user_input = st.chat_input( "Type your message...")
 
     if user_input:
-        # Store user message
+        # STORE user message in chat history
         st.session_state.chat_history[user_id].append({
             "role": "user",
             "content": user_input
         })
 
-        # ----------- AUTO EXTRACTION FIRST -----------
+        # EXTRACTION
+        # extract_and_store detects if sentence is a statement or not
         memory_response = extract_and_store(user_id, user_input)
 
         if memory_response:

@@ -16,7 +16,7 @@ Graph Update (NetworkX)
     ↓
 Graph Retrieval
     ↓
-LLM Formatting (Gemini/Groq API)
+LLM Formatting (Groq API)
     ↓
 Final Response
 
@@ -25,9 +25,9 @@ Final Response
 Python
 Streamlit – Web interface
 NetworkX – Knowledge graph
-spaCy / Rule-based extraction – Information extraction
-Gemini / Groq API – LLM response formatting
-Matplotlib / Pyvis – Graph visualization
+spaCy – Information extraction
+Groq API – LLM response formatting
+Matplotlib – Graph visualization
 
 
 🧠 How It Works

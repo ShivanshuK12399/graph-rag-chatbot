@@ -1,7 +1,18 @@
-Reflection (Approx. 230 Words)
+Reflection
 
-This project implements a Graph RAG chatbot with auto-updating memory using a knowledge graph structure. The system uses spaCy dependency parsing to extract structured information from user statements and stores it in a NetworkX MultiDiGraph as user–relation–entity triples. The extraction pipeline performs well for first-person declarative statements such as “I work at Google” or “I study mathematics.” It correctly identifies the subject, verb lemma, and object span, and distinguishes between institutional study (“study at”) and subject study (“study”). The recall pipeline uses NLP-based intent detection to route user questions to the appropriate graph relation, enabling structured retrieval.
+This project implements a Graph RAG chatbot with auto-updating memory using a knowledge graph structure. The system uses spaCy 
+dependency parsing to extract structured information from user statements and stores it in a NetworkX MultiDiGraph as 
+user–relation–entity triples. The extraction pipeline performs well for first-person declarative statements such as “I work at Google” 
+or “I study mathematics.” It correctly identifies the subject, verb lemma, and object span, and distinguishes between institutional 
+study (“study at”) and subject study (“study”). The recall pipeline uses NLP-based intent detection to route user questions to the 
+appropriate graph relation, enabling structured retrieval.
 
-The system handles multi-word entities and ignores negations to avoid storing incorrect facts. It also supports dedicated memory for multiple users through user_id separation. However, the extraction pipeline is limited to a controlled set of supported verbs (work, live, study, like). More complex sentence structures, passive voice, indirect references, or unsupported verbs are not captured.
+The system handles multi-word entities and ignores negations to avoid storing incorrect facts. It also supports dedicated memory for 
+multiple users through user_id separation. However, the extraction pipeline is limited to a controlled set of supported verbs (work, 
+live, study, like). More complex sentence structures, passive voice, indirect references, or unsupported verbs are not captured.
 
-A key limitation of using a graph structure for memory is the need for a predefined ontology. Without controlled relation types, the graph can become inconsistent or semantically noisy. While graph memory provides clear structure and explainability, it lacks flexibility compared to embedding-based memory systems and requires explicit relation mapping for scalability.
+A major limitation of using a graph for memory is that we must decide the types of relationships in advance. If we do not control the 
+relation types, the graph can become messy and inconsistent. Graph memory is easy to understand and explain because everything is 
+stored in a clear structure, but it is not very flexible. Unlike embedding-based systems, it cannot automatically understand similar 
+meanings or new types of information. To handle new kinds of facts, we must manually add new relation rules, which makes scaling the 
+system harder.
