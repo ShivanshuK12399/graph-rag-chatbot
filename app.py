@@ -16,8 +16,6 @@ st.sidebar.title("Graph RAG Settings")
 
 user_id = st.sidebar.text_input("Enter User ID", value="user_1")
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("Stage 5: Graph RAG + LLM Formatting")
 if st.sidebar.button("Show Graph"):
     subgraph = get_user_subgraph(user_id)
 

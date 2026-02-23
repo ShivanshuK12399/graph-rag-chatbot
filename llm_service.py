@@ -1,7 +1,7 @@
 from groq import Groq
 import os
 
-client = Groq(api_key="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")  # temporary
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 def generate_answer(triples, user_question):
     """

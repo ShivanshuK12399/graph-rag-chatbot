@@ -5,7 +5,7 @@ triples = [
     "user1 LIVES_IN Delhi"
 ]
 
-question = "What do I like?"
+question = "Where i live?"
 
 answer = generate_answer(triples, question)
 print(answer)

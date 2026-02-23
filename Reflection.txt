@@ -1,0 +1,7 @@
+Reflection (Approx. 230 Words)
+
+This project implements a Graph RAG chatbot with auto-updating memory using a knowledge graph structure. The system uses spaCy dependency parsing to extract structured information from user statements and stores it in a NetworkX MultiDiGraph as user–relation–entity triples. The extraction pipeline performs well for first-person declarative statements such as “I work at Google” or “I study mathematics.” It correctly identifies the subject, verb lemma, and object span, and distinguishes between institutional study (“study at”) and subject study (“study”). The recall pipeline uses NLP-based intent detection to route user questions to the appropriate graph relation, enabling structured retrieval.
+
+The system handles multi-word entities and ignores negations to avoid storing incorrect facts. It also supports dedicated memory for multiple users through user_id separation. However, the extraction pipeline is limited to a controlled set of supported verbs (work, live, study, like). More complex sentence structures, passive voice, indirect references, or unsupported verbs are not captured.
+
+A key limitation of using a graph structure for memory is the need for a predefined ontology. Without controlled relation types, the graph can become inconsistent or semantically noisy. While graph memory provides clear structure and explainability, it lacks flexibility compared to embedding-based memory systems and requires explicit relation mapping for scalability.
